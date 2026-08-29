@@ -37,12 +37,26 @@ import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(DynamicCombat.MODID)
 public class DynamicCombat {
     // Define mod id in a common place for everything to reference
     public static final String MODID = "dynamiccombat";
+    // Create a new instance of the mod class and store it in a static field for easy access
+    private final Map<UUID, ComboManager> comboManagers = new HashMap<>();
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
     // Create a Deferred Register to hold Blocks which will all be registered under the "dynamiccombat" namespace
@@ -112,28 +126,232 @@ public class DynamicCombat {
 
         Config.ITEM_STRINGS.get().forEach((item) -> LOGGER.info("ITEM >> {}", item));
     }
-    
-    @SubscribeEvent
-    public void onPlayerAttack(AttackEntityEvent event) {
 
-        if (event.getEntity().level().isClientSide()) {
-            return;
-        }
-
-        Player attacker = event.getEntity();
-        ItemStack weapon = attacker.getMainHandItem();
-        Item item = weapon.getItem();
-        Entity target = event.getTarget();
-
-        LOGGER.info("================================");
-        LOGGER.info("ATTACK DETECTED!");
-        LOGGER.info("ATTACKER: {}", attacker.getName().getString());
-        LOGGER.info("TARGET: {}", target.getName().getString());
-        LOGGER.info("WEAPON: {}", item);
-        LOGGER.info("================================");
+     private ComboManager getComboManager(Player player) {
+        return comboManagers.computeIfAbsent(
+            player.getUUID(),
+            uuid -> new ComboManager()
+        );
     }
 
     
+
+    // Identify the weapon used in the attack
+    private WeaponType identifyWeapon(ItemStack weapon) {
+
+        if (weapon.is(Items.WOODEN_SWORD)) {
+            return WeaponType.SWORD;
+        }
+
+        if (weapon.is(Items.STONE_SWORD)) {
+            return WeaponType.SWORD;
+        }
+
+        if (weapon.is(Items.IRON_SWORD)) {
+            return WeaponType.SWORD;
+        }
+
+        if (weapon.is(Items.DIAMOND_SWORD)) {
+            return WeaponType.SWORD;
+        }
+
+        if (weapon.is(Items.NETHERITE_SWORD)) {
+            return WeaponType.SWORD;
+        }
+
+        if (weapon.is(Items.WOODEN_AXE)) {
+            return WeaponType.AXE;
+        }
+
+        if (weapon.is(Items.STONE_AXE)) {
+            return WeaponType.AXE;
+        }
+
+        if (weapon.is(Items.IRON_AXE)) {
+            return WeaponType.AXE;
+        }
+
+        if (weapon.is(Items.DIAMOND_AXE)) {
+            return WeaponType.AXE;
+        }
+
+        if (weapon.is(Items.NETHERITE_AXE)) {
+            return WeaponType.AXE;
+        }
+
+        if (weapon.is(Items.BOW)) {
+            return WeaponType.BOW;
+        }
+
+        if (weapon.is(Items.CROSSBOW)) {
+            return WeaponType.CROSSBOW;
+        }
+
+        if (weapon.is(Items.TRIDENT)) {
+            return WeaponType.TRIDENT;
+        }
+
+        if (weapon.is(Items.MACE)) {
+            return WeaponType.MACE;
+        }
+        return WeaponType.UNKNOWN;
+    }
+        
+    
+    @SubscribeEvent
+    // This method will be called when a player attacks an entity
+    public void onPlayerAttack(AttackEntityEvent event) {
+        LOGGER.info("================================");
+        if (event.getEntity().level().isClientSide()) {
+            return;
+        }
+        Player attacker = event.getEntity();
+        Entity target = event.getTarget();
+
+        LOGGER.info("ATTACK DETECTED!");
+        
+        event.setCanceled(true);
+        
+        // Get the weapon used by the attacker
+        ItemStack weapon = attacker.getMainHandItem();
+        
+        // Identify the weapon type and log the attack
+        WeaponType weaponType = identifyWeapon(weapon);
+        if (weaponType == WeaponType.SWORD) {
+            LOGGER.info("SWORD ATTACK");
+        }
+        if (weaponType == WeaponType.AXE) {
+            LOGGER.info("AXE ATTACK");
+        }
+        if (weaponType == WeaponType.BOW) {
+            LOGGER.info("BOW ATTACK");
+        }
+        if (weaponType == WeaponType.CROSSBOW) {
+            LOGGER.info("CROSSBOW ATTACK");
+        }
+        if (weaponType == WeaponType.TRIDENT) {
+            LOGGER.info("TRIDENT ATTACK");
+        }
+        if (weaponType == WeaponType.MACE) {
+            LOGGER.info("MACE ATTACK");
+        }
+        
+        // Increment the combo counter and reset the combo timer 
+        ComboManager comboManager = getComboManager(attacker);
+
+        comboManager.nextCombo();
+
+        LOGGER.info("COMBO: {}", comboManager.getCombo());
+        LOGGER.info("COMBO TIMER: {}", comboManager.getComboTimer());
+        
+        // If the target is a LivingEntity, apply effects based on the weapon type
+        if(target instanceof LivingEntity) {
+            // Give the target a glow effect based on the weapon type
+            LivingEntity livingTarget = (LivingEntity) target;
+            DamageSource source =
+            livingTarget.damageSources().playerAttack(attacker);
+            
+            livingTarget.hurt(source, 1.0F);
+            
+            switch (weaponType) {
+                case SWORD:
+                    livingTarget.addEffect(
+                        new MobEffectInstance(MobEffects.GLOWING, 100, 0)
+                );
+                break;
+
+                case AXE:
+                    livingTarget.addEffect(
+                        new MobEffectInstance(MobEffects.POISON, 100, 0)
+                    );
+                break;
+                
+                case MACE:
+                    livingTarget.addEffect(
+                        new MobEffectInstance(MobEffects.WEAKNESS, 100, 0)
+                    );
+                break;
+            }
+        }
+        
+        // Identify the attack strength based on the attack strength scale and log it
+        float attackStrength = attacker.getAttackStrengthScale(0.0F);
+        AttackStrength strength = identifyAttackStrength(attackStrength);
+        
+        // Get the attack damage attribute of the attacker and log it
+        weapon.getAttributeModifiers();
+        AttributeInstance attributeInstance =
+        attacker.getAttribute(Attributes.ATTACK_DAMAGE);
+        
+        // Log the attack damage value if the attribute instance is not null
+        if (attributeInstance != null) {
+            double attackDamage = attributeInstance.getValue();
+        }
+        
+        // Check for specific weapon and attack strength combinations
+        if (weaponType == WeaponType.SWORD &&
+            strength == AttackStrength.FULL) {
+
+                LOGGER.info("SWORD FULL ATTACK!");
+            }
+
+        //vaos juntar a informação do ataque e logar no console
+        // as informações que vamos juntar são o WeaponType e o WeaponStrength
+        if (weaponType == WeaponType.MACE && strength == AttackStrength.FULL) {
+            LOGGER.info("MACE CRITICAL ATTACK");
+        }
+        if (weaponType == WeaponType.AXE && strength == AttackStrength.FULL) {
+            LOGGER.info("AXE CRITICAL ATTACK");
+        }
+        if (weaponType == WeaponType.SWORD && strength == AttackStrength.FULL) {
+            LOGGER.info("SWORD CRITICAL ATTACK");
+        }
+        if (weaponType == WeaponType.TRIDENT && strength == AttackStrength.FULL) {
+            LOGGER.info("TRIDENT CRITICAL ATTACK");
+        }
+
+        // Get the attack damage attribute of the attacker and log it
+        double attackDamage = 0.0;
+        if (attributeInstance != null) {
+            attackDamage = attributeInstance.getValue();
+        }     
+
+        LOGGER.info("ATTACK DAMAGE: {}", attackDamage);
+        LOGGER.info("ATTACK STRENGTH VALUE: {}", attackStrength);
+        LOGGER.info("ATTACK STRENGTH TYPE: {}", strength);
+   
+    }
+
+// Identify the attack strength based on the attack strength scale
+    private AttackStrength identifyAttackStrength(float attackStrength) {
+        if (attackStrength >= 1.0F) {
+            return AttackStrength.FULL;
+        }
+        else if (attackStrength >= 0.75F) {
+            return AttackStrength.STRONG;
+        }
+        else if (attackStrength >= 0.50F) {
+            return AttackStrength.MEDIUM;
+        }
+        else {
+            return AttackStrength.WEAK;
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerTick(PlayerTickEvent.Post event) {
+
+        Player player = event.getEntity();
+
+        if (player.level().isClientSide()) {
+            return;
+        }
+
+        ComboManager comboManager = getComboManager(player);
+
+        comboManager.tick();
+    }
+
     // Add the example block item to the building blocks tab
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
