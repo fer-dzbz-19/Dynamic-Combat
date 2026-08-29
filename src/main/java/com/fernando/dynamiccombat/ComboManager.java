@@ -20,7 +20,7 @@ public class ComboManager {
             combo = 1;
         }
 
-        comboTimer = 10;
+        comboTimer = 20;
     }
 
     public void tick() {
@@ -37,5 +37,9 @@ public class ComboManager {
     public void resetCombo() {
         combo = 0;
         comboTimer = 0;
+    }
+
+    public boolean isCombo(int number) {
+        return combo == number;
     }
 }

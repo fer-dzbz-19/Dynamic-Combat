@@ -134,8 +134,33 @@ public class DynamicCombat {
         );
     }
 
-    
 
+   private boolean checkSwordCombo(ComboManager comboManager, AttackStrength strength) {
+
+        if (comboManager.isCombo(1) && strength == AttackStrength.FULL) {
+            LOGGER.info("SWORD COMBO 1 CORRETO!");
+            return true;
+        }
+        else if (comboManager.isCombo(2) && strength == AttackStrength.MEDIUM) {
+            LOGGER.info("SWORD COMBO 2 CORRETO!");
+            return true;
+        }
+        else if (comboManager.isCombo(3) && strength == AttackStrength.MEDIUM) {
+            LOGGER.info("SWORD COMBO 3 CORRETO!");
+            return true;
+        }
+        else if (comboManager.isCombo(4) && strength == AttackStrength.MEDIUM) {
+            LOGGER.info("SWORD COMBO 4 CORRETO!");
+            return true;
+        }
+        else {
+            LOGGER.info("SWORD COMBO INCORRETO!");
+            comboManager.resetCombo();
+            return false;
+        }
+    
+    }
+    
     // Identify the weapon used in the attack
     private WeaponType identifyWeapon(ItemStack weapon) {
 
@@ -197,7 +222,26 @@ public class DynamicCombat {
         return WeaponType.UNKNOWN;
     }
         
-    
+    private double getWeaponDamage(WeaponType weaponType) {
+        switch (weaponType) {
+        case SWORD:
+            return 7.0;
+        case AXE:
+            return 9.0;
+        case MACE:
+            return 10.0;
+        case TRIDENT:
+            return 8.0;
+        case BOW:
+            return 6.0;
+        case CROSSBOW:
+            return 7.0;
+        default:
+            return 1.0;
+        }
+    }
+
+
     @SubscribeEvent
     // This method will be called when a player attacks an entity
     public void onPlayerAttack(AttackEntityEvent event) {
@@ -235,24 +279,53 @@ public class DynamicCombat {
         if (weaponType == WeaponType.MACE) {
             LOGGER.info("MACE ATTACK");
         }
+
+
+        // Identify the attack strength based on the attack strength scale and log it
+        float attackStrength = attacker.getAttackStrengthScale(0.0F);
+        AttackStrength strength = identifyAttackStrength(attackStrength);
         
         // Increment the combo counter and reset the combo timer 
         ComboManager comboManager = getComboManager(attacker);
 
-        comboManager.nextCombo();
+       comboManager.nextCombo();
 
-        LOGGER.info("COMBO: {}", comboManager.getCombo());
+        boolean validCombo = true;
+
+        if (weaponType == WeaponType.SWORD) {
+            validCombo = checkSwordCombo(comboManager, strength);
+        }
+
+        int combo = comboManager.getCombo();
+
+        LOGGER.info("COMBO: {}", combo);
         LOGGER.info("COMBO TIMER: {}", comboManager.getComboTimer());
         
+
         // If the target is a LivingEntity, apply effects based on the weapon type
         if(target instanceof LivingEntity) {
             // Give the target a glow effect based on the weapon type
             LivingEntity livingTarget = (LivingEntity) target;
+            
             DamageSource source =
             livingTarget.damageSources().playerAttack(attacker);
             
-            livingTarget.hurt(source, 1.0F);
-            
+            double weaponDamage = getWeaponDamage(weaponType);
+
+            double comboMultiplier = 1.0;
+
+            if (validCombo) {
+                comboMultiplier = getComboMultiplier(combo);
+            }
+
+            double finalDamage = weaponDamage * comboMultiplier;
+
+            LOGGER.info("WEAPON DAMAGE: {}", weaponDamage);
+            LOGGER.info("COMBO MULTIPLIER: {}", comboMultiplier);
+            LOGGER.info("FINAL DAMAGE: {}", finalDamage);
+
+            livingTarget.hurt(source, (float) finalDamage);
+
             switch (weaponType) {
                 case SWORD:
                     livingTarget.addEffect(
@@ -274,18 +347,15 @@ public class DynamicCombat {
             }
         }
         
-        // Identify the attack strength based on the attack strength scale and log it
-        float attackStrength = attacker.getAttackStrengthScale(0.0F);
-        AttackStrength strength = identifyAttackStrength(attackStrength);
-        
+
         // Get the attack damage attribute of the attacker and log it
-        weapon.getAttributeModifiers();
         AttributeInstance attributeInstance =
         attacker.getAttribute(Attributes.ATTACK_DAMAGE);
         
         // Log the attack damage value if the attribute instance is not null
         if (attributeInstance != null) {
             double attackDamage = attributeInstance.getValue();
+            LOGGER.info("ATTACK DAMAGE: {}", attackDamage);
         }
         
         // Check for specific weapon and attack strength combinations
@@ -315,7 +385,7 @@ public class DynamicCombat {
         if (attributeInstance != null) {
             attackDamage = attributeInstance.getValue();
         }     
-
+        
         LOGGER.info("ATTACK DAMAGE: {}", attackDamage);
         LOGGER.info("ATTACK STRENGTH VALUE: {}", attackStrength);
         LOGGER.info("ATTACK STRENGTH TYPE: {}", strength);
@@ -350,6 +420,22 @@ public class DynamicCombat {
         ComboManager comboManager = getComboManager(player);
 
         comboManager.tick();
+    }
+
+    private double getComboMultiplier(int combo) {
+        switch (combo) {
+            case 1:
+                return 1.0;
+            case 2:
+                return 1.1;
+            case 3:
+                return 1.25;
+            case 4:
+                return 1.5;
+            default:
+                return 1.0;
+        }
+    
     }
 
     // Add the example block item to the building blocks tab
