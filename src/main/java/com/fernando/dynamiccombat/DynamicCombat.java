@@ -1,17 +1,31 @@
 package com.fernando.dynamiccombat;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -19,36 +33,21 @@ import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraft.client.Minecraft;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(DynamicCombat.MODID)
@@ -57,6 +56,10 @@ public class DynamicCombat {
     public static final String MODID = "dynamiccombat";
     // Create a new instance of the mod class and store it in a static field for easy access
     private final Map<UUID, ComboManager> comboManagers = new HashMap<>();
+    // Create a new instance of the SwordCombat class and store it in a field for easy access
+    private final SwordCombat swordCombat;
+    private final MaceCombat maceCombat;
+    private final AxeCombat axeCombat;
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
     // Create a Deferred Register to hold Blocks which will all be registered under the "dynamiccombat" namespace
@@ -89,7 +92,9 @@ public class DynamicCombat {
     public DynamicCombat(IEventBus modEventBus, ModContainer modContainer) {
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
-
+        swordCombat = new SwordCombat(LOGGER);
+        maceCombat = new MaceCombat(LOGGER);
+        axeCombat = new AxeCombat(LOGGER);  
         // Register the Deferred Register to the mod event bus so blocks get registered
         BLOCKS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so items get registered
@@ -135,113 +140,6 @@ public class DynamicCombat {
     }
 
 
-   private boolean checkSwordCombo(ComboManager comboManager, AttackStrength strength) {
-
-        if (comboManager.isCombo(1) && strength == AttackStrength.FULL) {
-            LOGGER.info("SWORD COMBO 1 CORRETO!");
-            return true;
-        }
-        else if (comboManager.isCombo(2) && strength == AttackStrength.MEDIUM) {
-            LOGGER.info("SWORD COMBO 2 CORRETO!");
-            return true;
-        }
-        else if (comboManager.isCombo(3) && strength == AttackStrength.MEDIUM) {
-            LOGGER.info("SWORD COMBO 3 CORRETO!");
-            return true;
-        }
-        else if (comboManager.isCombo(4) && strength == AttackStrength.MEDIUM) {
-            LOGGER.info("SWORD COMBO 4 CORRETO!");
-            return true;
-        }
-        else {
-            LOGGER.info("SWORD COMBO INCORRETO!");
-            comboManager.resetCombo();
-            return false;
-        }
-    
-    }
-    
-    // Identify the weapon used in the attack
-    private WeaponType identifyWeapon(ItemStack weapon) {
-
-        if (weapon.is(Items.WOODEN_SWORD)) {
-            return WeaponType.SWORD;
-        }
-
-        if (weapon.is(Items.STONE_SWORD)) {
-            return WeaponType.SWORD;
-        }
-
-        if (weapon.is(Items.IRON_SWORD)) {
-            return WeaponType.SWORD;
-        }
-
-        if (weapon.is(Items.DIAMOND_SWORD)) {
-            return WeaponType.SWORD;
-        }
-
-        if (weapon.is(Items.NETHERITE_SWORD)) {
-            return WeaponType.SWORD;
-        }
-
-        if (weapon.is(Items.WOODEN_AXE)) {
-            return WeaponType.AXE;
-        }
-
-        if (weapon.is(Items.STONE_AXE)) {
-            return WeaponType.AXE;
-        }
-
-        if (weapon.is(Items.IRON_AXE)) {
-            return WeaponType.AXE;
-        }
-
-        if (weapon.is(Items.DIAMOND_AXE)) {
-            return WeaponType.AXE;
-        }
-
-        if (weapon.is(Items.NETHERITE_AXE)) {
-            return WeaponType.AXE;
-        }
-
-        if (weapon.is(Items.BOW)) {
-            return WeaponType.BOW;
-        }
-
-        if (weapon.is(Items.CROSSBOW)) {
-            return WeaponType.CROSSBOW;
-        }
-
-        if (weapon.is(Items.TRIDENT)) {
-            return WeaponType.TRIDENT;
-        }
-
-        if (weapon.is(Items.MACE)) {
-            return WeaponType.MACE;
-        }
-        return WeaponType.UNKNOWN;
-    }
-        
-    private double getWeaponDamage(WeaponType weaponType) {
-        switch (weaponType) {
-        case SWORD:
-            return 7.0;
-        case AXE:
-            return 9.0;
-        case MACE:
-            return 10.0;
-        case TRIDENT:
-            return 8.0;
-        case BOW:
-            return 6.0;
-        case CROSSBOW:
-            return 7.0;
-        default:
-            return 1.0;
-        }
-    }
-
-
     @SubscribeEvent
     // This method will be called when a player attacks an entity
     public void onPlayerAttack(AttackEntityEvent event) {
@@ -260,10 +158,8 @@ public class DynamicCombat {
         ItemStack weapon = attacker.getMainHandItem();
         
         // Identify the weapon type and log the attack
-        WeaponType weaponType = identifyWeapon(weapon);
-        if (weaponType == WeaponType.SWORD) {
-            LOGGER.info("SWORD ATTACK");
-        }
+        WeaponType weaponType = WeaponIdentifier.identify(weapon);
+        
         if (weaponType == WeaponType.AXE) {
             LOGGER.info("AXE ATTACK");
         }
@@ -287,21 +183,40 @@ public class DynamicCombat {
         
         // Increment the combo counter and reset the combo timer 
         ComboManager comboManager = getComboManager(attacker);
-
-       comboManager.nextCombo();
+        
+        comboManager.nextCombo();
 
         boolean validCombo = true;
 
         if (weaponType == WeaponType.SWORD) {
-            validCombo = checkSwordCombo(comboManager, strength);
+            validCombo = swordCombat.checkCombo(comboManager, strength);
+        }
+
+        else if (weaponType == WeaponType.AXE) {
+            validCombo = AxeCombat.checkCombo(comboManager, strength);
+        }
+
+        else if (weaponType == WeaponType.MACE) {
+            validCombo = maceCombat.checkCombo(comboManager, strength);
         }
 
         int combo = comboManager.getCombo();
 
+        if (weaponType == WeaponType.AXE
+            && target instanceof LivingEntity) {
+            axeCombat.applySpecialAttack(
+                attacker,
+                (LivingEntity) target,
+                    comboManager,
+                validCombo
+            );
+        }
+
+
         LOGGER.info("COMBO: {}", combo);
         LOGGER.info("COMBO TIMER: {}", comboManager.getComboTimer());
         
-
+        
         // If the target is a LivingEntity, apply effects based on the weapon type
         if(target instanceof LivingEntity) {
             // Give the target a glow effect based on the weapon type
@@ -310,89 +225,42 @@ public class DynamicCombat {
             DamageSource source =
             livingTarget.damageSources().playerAttack(attacker);
             
-            double weaponDamage = getWeaponDamage(weaponType);
-
-            double comboMultiplier = 1.0;
-
-            if (validCombo) {
-                comboMultiplier = getComboMultiplier(combo);
-            }
-
-            double finalDamage = weaponDamage * comboMultiplier;
-
-            LOGGER.info("WEAPON DAMAGE: {}", weaponDamage);
-            LOGGER.info("COMBO MULTIPLIER: {}", comboMultiplier);
-            LOGGER.info("FINAL DAMAGE: {}", finalDamage);
+            double finalDamage = DamageCalculator.calculateDamage(
+                weaponType,
+                combo,
+                strength
+            );
+            
+            LOGGER.info("WEAPON DAMAGE: {}", finalDamage);
 
             livingTarget.hurt(source, (float) finalDamage);
 
-            switch (weaponType) {
-                case SWORD:
-                    livingTarget.addEffect(
-                        new MobEffectInstance(MobEffects.GLOWING, 100, 0)
-                );
-                break;
-
-                case AXE:
-                    livingTarget.addEffect(
-                        new MobEffectInstance(MobEffects.POISON, 100, 0)
-                    );
-                break;
-                
-                case MACE:
-                    livingTarget.addEffect(
-                        new MobEffectInstance(MobEffects.WEAKNESS, 100, 0)
-                    );
-                break;
+            if (weaponType == WeaponType.SWORD) {
+                swordCombat.applyEffect(livingTarget);
             }
-        }
+
+            else if (weaponType == WeaponType.MACE) {
+                maceCombat.applyEffect(livingTarget);
+            }
         
 
         // Get the attack damage attribute of the attacker and log it
         AttributeInstance attributeInstance =
-        attacker.getAttribute(Attributes.ATTACK_DAMAGE);
-        
-        // Log the attack damage value if the attribute instance is not null
-        if (attributeInstance != null) {
-            double attackDamage = attributeInstance.getValue();
-            LOGGER.info("ATTACK DAMAGE: {}", attackDamage);
-        }
-        
-        // Check for specific weapon and attack strength combinations
-        if (weaponType == WeaponType.SWORD &&
-            strength == AttackStrength.FULL) {
+            attacker.getAttribute(Attributes.ATTACK_DAMAGE);
 
-                LOGGER.info("SWORD FULL ATTACK!");
-            }
-
-        //vaos juntar a informação do ataque e logar no console
-        // as informações que vamos juntar são o WeaponType e o WeaponStrength
-        if (weaponType == WeaponType.MACE && strength == AttackStrength.FULL) {
-            LOGGER.info("MACE CRITICAL ATTACK");
-        }
-        if (weaponType == WeaponType.AXE && strength == AttackStrength.FULL) {
-            LOGGER.info("AXE CRITICAL ATTACK");
-        }
-        if (weaponType == WeaponType.SWORD && strength == AttackStrength.FULL) {
-            LOGGER.info("SWORD CRITICAL ATTACK");
-        }
-        if (weaponType == WeaponType.TRIDENT && strength == AttackStrength.FULL) {
-            LOGGER.info("TRIDENT CRITICAL ATTACK");
-        }
-
-        // Get the attack damage attribute of the attacker and log it
         double attackDamage = 0.0;
+
         if (attributeInstance != null) {
             attackDamage = attributeInstance.getValue();
-        }     
+        }    
         
         LOGGER.info("ATTACK DAMAGE: {}", attackDamage);
         LOGGER.info("ATTACK STRENGTH VALUE: {}", attackStrength);
-        LOGGER.info("ATTACK STRENGTH TYPE: {}", strength);
+        LOGGER.info("ATTACK STRENGTH TYPE: {}", strength);}
    
     }
 
-// Identify the attack strength based on the attack strength scale
+    // Identify the attack strength based on the attack strength scale
     private AttackStrength identifyAttackStrength(float attackStrength) {
         if (attackStrength >= 1.0F) {
             return AttackStrength.FULL;
@@ -407,6 +275,7 @@ public class DynamicCombat {
             return AttackStrength.WEAK;
         }
     }
+    
 
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Post event) {
@@ -420,22 +289,6 @@ public class DynamicCombat {
         ComboManager comboManager = getComboManager(player);
 
         comboManager.tick();
-    }
-
-    private double getComboMultiplier(int combo) {
-        switch (combo) {
-            case 1:
-                return 1.0;
-            case 2:
-                return 1.1;
-            case 3:
-                return 1.25;
-            case 4:
-                return 1.5;
-            default:
-                return 1.0;
-        }
-    
     }
 
     // Add the example block item to the building blocks tab
