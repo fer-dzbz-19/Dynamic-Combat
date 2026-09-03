@@ -12,7 +12,7 @@ public class MaceCombat {
 
     public MaceCombat(Logger logger) {
         this.logger = logger;
-    }
+        }
 
     public boolean checkCombo(ComboManager comboManager, AttackStrength strength) {
 

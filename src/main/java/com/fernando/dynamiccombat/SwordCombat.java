@@ -13,6 +13,7 @@ public class SwordCombat {
         this.logger = logger;
     }
 
+
     public boolean checkCombo(ComboManager comboManager, AttackStrength strength) {
 
         if (comboManager.isCombo(1) && strength == AttackStrength.FULL) {
@@ -37,6 +38,12 @@ public class SwordCombat {
             return false;
         }
     }
+    
+    public void applyFlurry(ComboManager comboManager) {
+        if (comboManager.isCombo(4)) {
+            logger.info("Flurry effect applied!");
+        }
+    }
 
     public void applyEffect(LivingEntity target) {
 
@@ -47,5 +54,7 @@ public class SwordCombat {
                 0
             )
         );
-}
+    }
+
+
 }

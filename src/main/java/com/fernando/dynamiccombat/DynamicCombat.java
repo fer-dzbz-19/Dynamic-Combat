@@ -56,6 +56,7 @@ public class DynamicCombat {
     public static final String MODID = "dynamiccombat";
     // Create a new instance of the mod class and store it in a static field for easy access
     private final Map<UUID, ComboManager> comboManagers = new HashMap<>();
+    private final Map<UUID, SpecialAttacks> specialAttacksMap = new HashMap<>();
     // Create a new instance of the SwordCombat class and store it in a field for easy access
     private final SwordCombat swordCombat;
     private final MaceCombat maceCombat;
@@ -94,7 +95,7 @@ public class DynamicCombat {
         modEventBus.addListener(this::commonSetup);
         swordCombat = new SwordCombat(LOGGER);
         maceCombat = new MaceCombat(LOGGER);
-        axeCombat = new AxeCombat(LOGGER);  
+        axeCombat = new AxeCombat(LOGGER);
         // Register the Deferred Register to the mod event bus so blocks get registered
         BLOCKS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so items get registered
@@ -138,7 +139,12 @@ public class DynamicCombat {
             uuid -> new ComboManager()
         );
     }
-
+    private SpecialAttacks getSpecialAttacks(Player player) {
+        return specialAttacksMap.computeIfAbsent(
+            player.getUUID(),
+            uuid -> new SpecialAttacks(LOGGER)
+        );
+    }
 
     @SubscribeEvent
     // This method will be called when a player attacks an entity
@@ -190,6 +196,14 @@ public class DynamicCombat {
 
         if (weaponType == WeaponType.SWORD) {
             validCombo = swordCombat.checkCombo(comboManager, strength);
+
+            if (validCombo && comboManager.isCombo(4) && target instanceof LivingEntity) {
+                SpecialAttacks specialAttack = getSpecialAttacks(attacker);
+
+                specialAttack.startFlurry((LivingEntity) target);
+
+                LOGGER.info("FLURRY STARTED!");
+            }
         }
 
         else if (weaponType == WeaponType.AXE) {
@@ -289,6 +303,10 @@ public class DynamicCombat {
         ComboManager comboManager = getComboManager(player);
 
         comboManager.tick();
+
+        SpecialAttacks specialAttack = getSpecialAttacks(player);
+
+        specialAttack.updateFlurry(player);
     }
 
     // Add the example block item to the building blocks tab
