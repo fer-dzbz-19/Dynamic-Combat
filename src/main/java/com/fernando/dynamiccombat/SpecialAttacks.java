@@ -3,6 +3,7 @@ package com.fernando.dynamiccombat;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.slf4j.Logger;
+import net.minecraft.world.damagesource.DamageSource;
 
 public class SpecialAttacks {
 
@@ -27,20 +28,29 @@ public class SpecialAttacks {
 
     private int flurryHit = 0;
 
+    private double flurryTotalDamage = 0;
+
     private LivingEntity flurryTarget;
 
 
     public void startFlurry(LivingEntity target) {
         flurryActive = true;
         flurryHit = 0;
+        flurryTotalDamage = 0;
         flurryAttackTimer = 2;
         flurryTarget = target;
 
     }
 
-   public void updateFlurry(Player attacker) {
+   public void updateFlurry(Player attacker, double attackDamage) {
 
         if (!flurryActive) {
+            return;
+        }
+
+        if (flurryTarget == null || !flurryTarget.isAlive()) {
+        logger.info("ATTACK BLOCKED DURING FLURRY");
+            flurryActive = false;
             return;
         }
 
@@ -53,17 +63,49 @@ public class SpecialAttacks {
             logger.info("FLURRY HIT!");
 
             flurryHit++;
+            if (flurryTarget != null && flurryTarget.isAlive() ) {
+                logger.info("FLURRY TARGET: {}", flurryTarget.getName().getString());
+
+                DamageSource damageSource = attacker.damageSources().playerAttack(attacker);
+
+                logger.info("FLURRY DAMAGE SOURCE CREATED!");
+
+                double damage = DamageCalculator.calculateFlurryDamage();
+
+                flurryTotalDamage += damage;
+
+                flurryTarget.hurt(damageSource, (float) damage);
+            }
 
             if (flurryHit >= 4) {
 
                 flurryActive = false;
 
+                double allDamage = attackDamage + flurryTotalDamage;
+
+                logger.info("FLURRY TOTAL DAMAGE: {}", flurryTotalDamage);
+
+                logger.info("ALL DAMAGE: {}", allDamage);
+
                 logger.info("FLURRY ENDED!");
+
+                flurryTarget = null;
+                flurryTotalDamage = 0;
+                flurryTotalDamage = 0;
+                flurryAttackTimer = 0;
 
             } else {
 
                 flurryAttackTimer = 2;
             }
         }
+    }
+
+    public double getFlurryTotalDamage() {
+        return flurryTotalDamage;
+    }
+
+    public boolean isFlurryActive() {
+        return flurryActive;
     }
 }

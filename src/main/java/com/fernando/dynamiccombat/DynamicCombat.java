@@ -57,6 +57,7 @@ public class DynamicCombat {
     // Create a new instance of the mod class and store it in a static field for easy access
     private final Map<UUID, ComboManager> comboManagers = new HashMap<>();
     private final Map<UUID, SpecialAttacks> specialAttacksMap = new HashMap<>();
+    private final Map<UUID, Double> lastAttackDamage = new HashMap<>();
     // Create a new instance of the SwordCombat class and store it in a field for easy access
     private final SwordCombat swordCombat;
     private final MaceCombat maceCombat;
@@ -155,6 +156,12 @@ public class DynamicCombat {
         }
         Player attacker = event.getEntity();
         Entity target = event.getTarget();
+        SpecialAttacks specialAttack = getSpecialAttacks(attacker);
+
+        if (specialAttack.isFlurryActive()) {
+            event.setCanceled(true);
+            return;
+        }
 
         LOGGER.info("ATTACK DETECTED!");
         
@@ -197,13 +204,11 @@ public class DynamicCombat {
         if (weaponType == WeaponType.SWORD) {
             validCombo = swordCombat.checkCombo(comboManager, strength);
 
-            if (validCombo && comboManager.isCombo(4) && target instanceof LivingEntity) {
-                SpecialAttacks specialAttack = getSpecialAttacks(attacker);
+        if (validCombo && comboManager.isCombo(4) && target instanceof LivingEntity) {
+            specialAttack.startFlurry((LivingEntity) target);
 
-                specialAttack.startFlurry((LivingEntity) target);
-
-                LOGGER.info("FLURRY STARTED!");
-            }
+            LOGGER.info("FLURRY STARTED!");
+        }
         }
 
         else if (weaponType == WeaponType.AXE) {
@@ -241,9 +246,11 @@ public class DynamicCombat {
             
             double finalDamage = DamageCalculator.calculateDamage(
                 weaponType,
-                combo,
+                comboManager.getCombo(),
                 strength
             );
+
+            lastAttackDamage.put(attacker.getUUID(), finalDamage);
             
             LOGGER.info("WEAPON DAMAGE: {}", finalDamage);
 
@@ -306,7 +313,13 @@ public class DynamicCombat {
 
         SpecialAttacks specialAttack = getSpecialAttacks(player);
 
-        specialAttack.updateFlurry(player);
+        double attackdamage = getLastAttackDamage(player);
+
+        specialAttack.updateFlurry(player, attackdamage);
+    }
+
+    private double getLastAttackDamage(Player player) {
+        return lastAttackDamage.getOrDefault(player.getUUID(), 0.0);
     }
 
     // Add the example block item to the building blocks tab

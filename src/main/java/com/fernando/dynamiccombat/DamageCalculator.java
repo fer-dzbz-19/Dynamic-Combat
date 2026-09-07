@@ -85,4 +85,8 @@ public class DamageCalculator {
                 return 1.0;
         }
     }
+
+    public static double calculateFlurryDamage() {
+        return 1.375;
+    }
 }
