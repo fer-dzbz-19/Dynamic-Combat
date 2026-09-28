@@ -13,8 +13,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -30,6 +28,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -62,6 +61,7 @@ public class DynamicCombat {
     private final SwordCombat swordCombat;
     private final MaceCombat maceCombat;
     private final AxeCombat axeCombat;
+    private final TridentCombat tridentCombat;
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
     // Create a Deferred Register to hold Blocks which will all be registered under the "dynamiccombat" namespace
@@ -97,6 +97,7 @@ public class DynamicCombat {
         swordCombat = new SwordCombat(LOGGER);
         maceCombat = new MaceCombat(LOGGER);
         axeCombat = new AxeCombat(LOGGER);
+        tridentCombat = new TridentCombat(LOGGER);
         // Register the Deferred Register to the mod event bus so blocks get registered
         BLOCKS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so items get registered
@@ -158,7 +159,7 @@ public class DynamicCombat {
         Entity target = event.getTarget();
         SpecialAttacks specialAttack = getSpecialAttacks(attacker);
 
-        if (specialAttack.isFlurryActive()) {
+        if (specialAttack.isSpecialAttackActive()) {
             event.setCanceled(true);
             return;
         }
@@ -197,39 +198,77 @@ public class DynamicCombat {
         // Increment the combo counter and reset the combo timer 
         ComboManager comboManager = getComboManager(attacker);
         
-        comboManager.nextCombo();
+        comboManager.nextCombo(weaponType);
 
         boolean validCombo = true;
 
         if (weaponType == WeaponType.SWORD) {
-            validCombo = swordCombat.checkCombo(comboManager, strength);
+            validCombo = SwordCombat.checkCombo(comboManager, strength);
 
-        if (validCombo && comboManager.isCombo(4) && target instanceof LivingEntity) {
-            specialAttack.startFlurry((LivingEntity) target);
+            if (validCombo 
+                && comboManager.isCombo(4) 
+                && target instanceof LivingEntity) {
+                specialAttack.startSpecialAttack(
+                    weaponType,
+                    attacker,
+                    (LivingEntity) target
+                );
 
-            LOGGER.info("FLURRY STARTED!");
-        }
+                LOGGER.info("FLURRY STARTED!");
+            }
         }
 
         else if (weaponType == WeaponType.AXE) {
             validCombo = AxeCombat.checkCombo(comboManager, strength);
+
+            if (validCombo
+                && comboManager.isCombo(4)
+                && target instanceof LivingEntity) {
+    
+                specialAttack.startSpecialAttack(
+                    weaponType,
+                    attacker,
+                    (LivingEntity) target
+                );
+                LOGGER.info("AXE SPECIAL ATTACK HAPPENED!");
+            }
+        }
+        
+
+        else if (weaponType == WeaponType.TRIDENT) {
+            validCombo = TridentCombat.checkCombo(comboManager, strength);
+
+            if (validCombo
+                && comboManager.isCombo(4)
+                && target instanceof LivingEntity) {
+
+                specialAttack.startSpecialAttack(
+                    weaponType,
+                    attacker,
+                    (LivingEntity) target
+                );
+                LOGGER.info("TRIDENT SPECIAL ATTACK HAPPENED!");
+            }
         }
 
         else if (weaponType == WeaponType.MACE) {
-            validCombo = maceCombat.checkCombo(comboManager, strength);
+            validCombo = MaceCombat.checkCombo(comboManager, strength);
+
+            if (validCombo
+                && comboManager.isCombo(4)
+                && target instanceof LivingEntity) {
+                
+                specialAttack.startSpecialAttack(
+                    weaponType,
+                    attacker,
+                    (LivingEntity) target
+                );
+                LOGGER.info("MACE SPECIAL ATTACK HAPPENED");
+            } 
         }
 
         int combo = comboManager.getCombo();
 
-        if (weaponType == WeaponType.AXE
-            && target instanceof LivingEntity) {
-            axeCombat.applySpecialAttack(
-                attacker,
-                (LivingEntity) target,
-                    comboManager,
-                validCombo
-            );
-        }
 
 
         LOGGER.info("COMBO: {}", combo);
@@ -250,21 +289,16 @@ public class DynamicCombat {
                 strength
             );
 
+            if (!validCombo) {
+                finalDamage /= 2;
+            }
+
             lastAttackDamage.put(attacker.getUUID(), finalDamage);
             
-            LOGGER.info("WEAPON DAMAGE: {}", finalDamage);
+            LOGGER.info("WEAPON BASE DAMAGE: {}", finalDamage);
 
             livingTarget.hurt(source, (float) finalDamage);
-
-            if (weaponType == WeaponType.SWORD) {
-                swordCombat.applyEffect(livingTarget);
-            }
-
-            else if (weaponType == WeaponType.MACE) {
-                maceCombat.applyEffect(livingTarget);
-            }
         
-
         // Get the attack damage attribute of the attacker and log it
         AttributeInstance attributeInstance =
             attacker.getAttribute(Attributes.ATTACK_DAMAGE);
@@ -275,7 +309,7 @@ public class DynamicCombat {
             attackDamage = attributeInstance.getValue();
         }    
         
-        LOGGER.info("ATTACK DAMAGE: {}", attackDamage);
+        LOGGER.info("COMBO ATTACK DAMAGE: {}", attackDamage);
         LOGGER.info("ATTACK STRENGTH VALUE: {}", attackStrength);
         LOGGER.info("ATTACK STRENGTH TYPE: {}", strength);}
    
@@ -299,7 +333,7 @@ public class DynamicCombat {
     
 
     @SubscribeEvent
-    public void onPlayerTick(PlayerTickEvent.Post event) {
+    public void onPlayerTick(PlayerTickEvent.Post event ) {
 
         Player player = event.getEntity();
 
@@ -315,7 +349,8 @@ public class DynamicCombat {
 
         double attackdamage = getLastAttackDamage(player);
 
-        specialAttack.updateFlurry(player, attackdamage);
+        specialAttack.updateSpecialAttack(player, attackdamage);
+
     }
 
     private double getLastAttackDamage(Player player) {

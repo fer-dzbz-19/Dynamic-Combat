@@ -2,10 +2,11 @@ package com.fernando.dynamiccombat;
 
 import org.slf4j.Logger;
 
-public class AxeCombat {
+public class TridentCombat {
+
     private final Logger logger;
 
-    public AxeCombat(Logger logger) {
+    public TridentCombat(Logger logger) {
         this.logger = logger;
     }
 
@@ -14,35 +15,38 @@ public class AxeCombat {
             AttackStrength strength) {
 
         DynamicCombat.LOGGER.info(
-            "DEBUG AXE -> COMBO: {}, STRENGTH: {}",
+            "DEBUG TRIDENT -> COMBO: {}, STRENGTH: {}",
             comboManager.getCombo(),
             strength
         );
         
         if (comboManager.isCombo(1) && strength == AttackStrength.FULL) {
-            DynamicCombat.LOGGER.info("AXE COMBO 1 CORRETO!");
+            DynamicCombat.LOGGER.info("TRIDENT COMBO 1 CORRETO!");
             return true;
         }
 
         else if (comboManager.isCombo(2) && strength == AttackStrength.MEDIUM) {
-            DynamicCombat.LOGGER.info("AXE COMBO 2 CORRETO!");
+            DynamicCombat.LOGGER.info("TRIDENT COMBO 2 CORRETO!");
             return true;
         }
 
-        else if (comboManager.isCombo(3) && strength == AttackStrength.MEDIUM) {
-            DynamicCombat.LOGGER.info("AXE COMBO 3 CORRETO!");
+        else if (comboManager.isCombo(3) && strength == AttackStrength.STRONG) {
+            DynamicCombat.LOGGER.info("TRIDENT COMBO 3 CORRETO!");
             return true;
         }
 
-        else if (comboManager.isCombo(4) && strength == AttackStrength.MEDIUM) {
-            DynamicCombat.LOGGER.info("AXE COMBO 4 CORRETO!");
+        else if (comboManager.isCombo(4) && strength == AttackStrength.FULL) {
+            DynamicCombat.LOGGER.info("TRIDENT COMBO 4 CORRETO!");
             return true;
         }
 
         else {
-            DynamicCombat.LOGGER.info("AXE COMBO INCORRETO!");
+            DynamicCombat.LOGGER.info("TRIDENT COMBO INCORRETO!");
             comboManager.resetCombo();
             return false;
         }
+    
     }
+
+
 }

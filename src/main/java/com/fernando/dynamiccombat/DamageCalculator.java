@@ -87,6 +87,18 @@ public class DamageCalculator {
     }
 
     public static double calculateFlurryDamage() {
-        return 1.375;
+        return getWeaponDamage(WeaponType.SWORD) * 0.5;
+    }
+
+    public static double calculateHeavyStrikeDamage() {
+        return getWeaponDamage(WeaponType.AXE) * 2.0;
+    }
+
+    public static double calculateRisingImpaleDamage() {
+        return getWeaponDamage(WeaponType.TRIDENT) * 2.0;
+    }
+
+    public static double calculateCrushDamage() {
+        return getWeaponDamage(WeaponType.MACE) * 2.0;
     }
 }

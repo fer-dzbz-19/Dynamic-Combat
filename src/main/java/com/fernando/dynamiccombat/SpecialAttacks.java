@@ -3,109 +3,60 @@ package com.fernando.dynamiccombat;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.slf4j.Logger;
-import net.minecraft.world.damagesource.DamageSource;
 
 public class SpecialAttacks {
 
     private final Logger logger;
     
+    private final SwordSpecialAttack swordSpecialAttack;
+
+    private final AxeSpecialAttack axeSpecialAttack;
+
+    private final TridentSpecialAttack tridentSpecialAttack;
+
+    private final MaceSpecialAttack maceSpecialAttack;
+
     public SpecialAttacks(Logger logger) {
         this.logger = logger;
+        this.swordSpecialAttack = new SwordSpecialAttack(logger);
+        this.axeSpecialAttack = new AxeSpecialAttack(logger);
+        this.tridentSpecialAttack = new TridentSpecialAttack(logger);
+        this.maceSpecialAttack = new MaceSpecialAttack(logger);
     }
 
+    public void startSpecialAttack(
+        WeaponType weaponType,
+        Player attacker,
+        LivingEntity target) {
 
-    // FLURRY - primeiro ataque especial do Dynamic Combat
-
-    // O Flurry é ativado quando se completa o 4º combo
-    // de ataques consecutivos com a espada.
-
-    // O Flurry é uma sequência de ataques rápidos,
-    // composta por vários golpes de baixo dano.
-
-    private boolean flurryActive = false;
-
-    private int flurryAttackTimer = 2;
-
-    private int flurryHit = 0;
-
-    private double flurryTotalDamage = 0;
-
-    private LivingEntity flurryTarget;
-
-
-    public void startFlurry(LivingEntity target) {
-        flurryActive = true;
-        flurryHit = 0;
-        flurryTotalDamage = 0;
-        flurryAttackTimer = 2;
-        flurryTarget = target;
-
-    }
-
-   public void updateFlurry(Player attacker, double attackDamage) {
-
-        if (!flurryActive) {
-            return;
-        }
-
-        if (flurryTarget == null || !flurryTarget.isAlive()) {
-        logger.info("ATTACK BLOCKED DURING FLURRY");
-            flurryActive = false;
-            return;
-        }
-
-        if (flurryAttackTimer > 0) {
-            flurryAttackTimer--;
-        }
-
-        if (flurryAttackTimer == 0) {
-
-            logger.info("FLURRY HIT!");
-
-            flurryHit++;
-            if (flurryTarget != null && flurryTarget.isAlive() ) {
-                logger.info("FLURRY TARGET: {}", flurryTarget.getName().getString());
-
-                DamageSource damageSource = attacker.damageSources().playerAttack(attacker);
-
-                logger.info("FLURRY DAMAGE SOURCE CREATED!");
-
-                double damage = DamageCalculator.calculateFlurryDamage();
-
-                flurryTotalDamage += damage;
-
-                flurryTarget.hurt(damageSource, (float) damage);
+            if (weaponType == WeaponType.SWORD) {
+                swordSpecialAttack.startFlurry(target);
+            }
+            
+            else if (weaponType == WeaponType.AXE) {
+                axeSpecialAttack.startHeavyStrike(attacker, target);
+            }
+            
+            else if (weaponType == WeaponType.TRIDENT) {
+                tridentSpecialAttack.startRisingImpale(target);
             }
 
-            if (flurryHit >= 4) {
-
-                flurryActive = false;
-
-                double allDamage = attackDamage + flurryTotalDamage;
-
-                logger.info("FLURRY TOTAL DAMAGE: {}", flurryTotalDamage);
-
-                logger.info("ALL DAMAGE: {}", allDamage);
-
-                logger.info("FLURRY ENDED!");
-
-                flurryTarget = null;
-                flurryTotalDamage = 0;
-                flurryTotalDamage = 0;
-                flurryAttackTimer = 0;
-
-            } else {
-
-                flurryAttackTimer = 2;
+            else if (weaponType == WeaponType.MACE) {
+                maceSpecialAttack.startCrush(attacker, target);
             }
         }
+
+    public boolean isSpecialAttackActive() {
+        return swordSpecialAttack.isFlurryActive() 
+        || axeSpecialAttack.isAxeSpecialAttackActive() 
+        || tridentSpecialAttack.isRisingImpaleActive()
+        || maceSpecialAttack.isMaceSpecialAttackActive();
     }
 
-    public double getFlurryTotalDamage() {
-        return flurryTotalDamage;
-    }
-
-    public boolean isFlurryActive() {
-        return flurryActive;
+    public void updateSpecialAttack(Player attacker, double attackDamage) {
+        swordSpecialAttack.updateFlurry(attacker, attackDamage);
+        tridentSpecialAttack.updateRisingImpale(attacker, attackDamage);
+        axeSpecialAttack.updateHeavyStrike(attacker, attackDamage);
+        maceSpecialAttack.updateCrush(attacker, attackDamage);
     }
 }
